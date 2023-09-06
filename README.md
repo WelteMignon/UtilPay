@@ -10,11 +10,11 @@ In order to uphold ACID properties, user payments data is stored within Amazon R
 
 ## Architecture & Design
 
-![Architecture Diagram](./images/architecture.png)
+![Architecture Diagram](./images/architecture.jpg)
 
 ### Networking
 
-![Network Diagram](./images/network.png)
+![Network Diagram](./images/network.jpg)
 
 ## Design Notes
 
@@ -53,7 +53,7 @@ GET
 `/get_history/{apartment_id}/{queue_name}`  
 The client receive a message containing a list of user's settled debts from an SQS queue.  
 
-POST
+POST  
 `/pay_utils/{apartment_id}`  
 The request to make payments towards debts. The request body includes 'bills_id' and 'queue_name'. The 'bills_id' field contains the identifiers of bills to be paid.
 
