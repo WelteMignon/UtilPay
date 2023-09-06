@@ -1,0 +1,219 @@
+---
+swagger: "2.0"
+info:
+  version: "1.0"
+  title: "util-app"
+basePath: "/utilpay"
+schemes:
+- "https"
+paths:
+  /login:
+    post:
+      consumes:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+      x-amazon-apigateway-integration:
+        type: "aws"
+        credentials:
+          Fn::GetAtt: [ApiGwExecutionRole, Arn]
+        httpMethod: "POST"
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:sqs:path/${AWS::AccountId}/${SignInQueue.QueueName}
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.header.Content-Type: "'application/x-www-form-urlencoded'"
+        requestTemplates:
+          application/json: "Action=SendMessage&MessageBody={\"request_body\": $input.json('$')}"
+        passthroughBehavior: "when_no_match"
+  /login/{queue_name}:
+    get:
+      responses:
+        "200":
+          description: "200 response"
+      parameters:
+      - name: "queue_name"
+        in: "path"
+        required: true
+        type: "string"
+      x-amazon-apigateway-integration:
+        type: "aws"
+        credentials:
+          Fn::GetAtt: [ApiGwExecutionRole, Arn]
+        httpMethod: "POST"
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:sqs:path/${AWS::AccountId}/{queue_name}
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.queue_name: method.request.path.queue_name
+          integration.request.header.Content-Type: "'application/x-www-form-urlencoded'"
+        requestTemplates:
+          application/json: "Action=ReceiveMessage"
+        passthroughBehavior: "when_no_match"
+  /get_utils/{apartment_id}:
+    post:
+      consumes:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+      parameters:
+      - name: "apartment_id"
+        in: "path"
+        required: true
+        type: "string"
+      x-amazon-apigateway-integration:
+        type: "aws"
+        credentials:
+          Fn::GetAtt: [ApiGwExecutionRole, Arn]
+        httpMethod: "POST"
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:sqs:path/${AWS::AccountId}/${GetUtilitiesQueue.QueueName}
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.apartment_id: method.request.path.apartment_id
+          integration.request.header.Content-Type: "'application/x-www-form-urlencoded'"
+        requestTemplates:
+          application/json: "Action=SendMessage&MessageBody={\"request_body\": $input.json('$'), \"path_params\": {\"apartment_id\": \"$input.params('apartment_id')\"}}"
+        passthroughBehavior: "when_no_match"
+  /get_utils/{apartment_id}/{queue_name}:
+    get:
+      responses:
+        "200":
+          description: "200 response"
+      parameters:
+      - name: "queue_name"
+        in: "path"
+        required: true
+        type: "string"
+      x-amazon-apigateway-integration:
+        type: "aws"
+        credentials:
+          Fn::GetAtt: [ApiGwExecutionRole, Arn]
+        httpMethod: "POST"
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:sqs:path/${AWS::AccountId}/{queue_name}
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.queue_name: method.request.path.queue_name
+          integration.request.header.Content-Type: "'application/x-www-form-urlencoded'"
+        requestTemplates:
+          application/json: "Action=ReceiveMessage"
+        passthroughBehavior: "when_no_match"
+  /get_history/{apartment_id}:
+    post:
+      consumes:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+      parameters:
+      - name: "apartment_id"
+        in: "path"
+        required: true
+        type: "string"
+      x-amazon-apigateway-integration:
+        type: "aws"
+        credentials:
+          Fn::GetAtt: [ApiGwExecutionRole, Arn]
+        httpMethod: "POST"
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:sqs:path/${AWS::AccountId}/${GetUtilHistoryQueue.QueueName}
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.apartment_id: method.request.path.apartment_id
+          integration.request.header.Content-Type: "'application/x-www-form-urlencoded'"
+        requestTemplates:
+          application/json: "Action=SendMessage&MessageBody={\"request_body\": $input.json('$'), \"path_params\": {\"apartment_id\": \"$input.params('apartment_id')\"}}"
+        passthroughBehavior: "when_no_match"
+  /get_history/{apartment_id}/{queue_name}:
+    get:
+      responses:
+        "200":
+          description: "200 response"
+      parameters:
+      - name: "queue_name"
+        in: "path"
+        required: true
+        type: "string"
+      x-amazon-apigateway-integration:
+        type: "aws"
+        credentials:
+          Fn::GetAtt: [ApiGwExecutionRole, Arn]
+        httpMethod: "POST"
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:sqs:path/${AWS::AccountId}/{queue_name}
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.queue_name: method.request.path.queue_name
+          integration.request.header.Content-Type: "'application/x-www-form-urlencoded'"
+        requestTemplates:
+          application/json: "Action=ReceiveMessage"
+        passthroughBehavior: "when_no_match"
+  /pay_utils/{apartment_id}:
+    post:
+      consumes:
+      - "application/json"
+      responses:
+        "200":
+          description: "200 response"
+      parameters:
+      - name: "apartment_id"
+        in: "path"
+        required: true
+        type: "string"
+      x-amazon-apigateway-integration:
+        type: "aws"
+        credentials:
+          Fn::GetAtt: [ApiGwExecutionRole, Arn]
+        httpMethod: "POST"
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:sqs:path/${AWS::AccountId}/${PayUtilitiesQueue.QueueName}
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.apartment_id: method.request.path.apartment_id
+          integration.request.header.Content-Type: "'application/x-www-form-urlencoded'"
+        requestTemplates:
+          application/json: "Action=SendMessage&MessageBody={\"request_body\": $input.json('$'), \"path_params\": {\"apartment_id\": \"$input.params('apartment_id')\"}}"
+        passthroughBehavior: "when_no_match"
+  /pay_utils/{apartment_id}/{queue_name}:
+    get:
+      responses:
+        "200":
+          description: "200 response"
+      parameters:
+      - name: "queue_name"
+        in: "path"
+        required: true
+        type: "string"
+      x-amazon-apigateway-integration:
+        type: "aws"
+        credentials:
+          Fn::GetAtt: [ApiGwExecutionRole, Arn]
+        httpMethod: "POST"
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:sqs:path/${AWS::AccountId}/{queue_name}
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.queue_name: method.request.path.queue_name
+          integration.request.header.Content-Type: "'application/x-www-form-urlencoded'"
+        requestTemplates:
+          application/json: "Action=ReceiveMessage"
+        passthroughBehavior: "when_no_match"

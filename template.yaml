@@ -1,0 +1,573 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'util-payments'
+
+Globals:
+  Function:
+    Timeout: 3
+    MemorySize: 128
+Parameters:
+  
+  UsernameDB:
+    Description: Master's username for PostgresDB
+    Type: String
+
+  PasswordDB:
+    Description: Master's password for PostgresDB
+    Type: String
+  
+  UsernameCustomerDB:
+    Description: Customer's username for PostgresDB
+    Type: String
+
+  PasswordCustomerDB:
+    Description: Customer's password for PostgresDB
+    Type: String
+    
+  NameDB:
+    Description: Name for PostgresDB
+    Type: String
+
+Resources:
+  UtilVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: "10.0.0.0/16"
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: UtilVPC
+  
+  UtilFirstPrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref UtilVPC
+      CidrBlock: "10.0.2.0/24"
+      AvailabilityZone: us-east-1a
+      Tags:
+        - Key: Name
+          Value: UtilFirstPrivateSubnet
+  
+  UtilSecondPrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref UtilVPC
+      CidrBlock: "10.0.3.0/24"
+      AvailabilityZone: us-east-1b
+      Tags:
+        - Key: Name
+          Value: UtilSecondPrivateSubnet
+  
+  SignIn:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/
+      Handler: login.lambda_handler
+      Role: !GetAtt UtilLambdaRole.Arn
+      Runtime: python3.8
+      Layers:
+        - !Ref QueriesLayer
+      Policies:
+        - SQSPollerPolicy:
+            QueueName: !GetAtt SignInQueue.QueueName
+      Events:
+        SignInQueueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt SignInQueue.Arn
+            BatchSize: 10
+  
+  SignInQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 120
+      RedrivePolicy:
+        deadLetterTargetArn:
+          !GetAtt SignInDLQ.Arn
+        maxReceiveCount: 5
+
+  SignInDLQ:
+    Type: AWS::SQS::Queue
+      
+  GetUtilities:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/
+      Handler: unpaid_utils.lambda_handler
+      Runtime: python3.8
+      Role: !GetAtt UtilLambdaRole.Arn
+      Layers:
+        - !Ref QueriesLayer
+      Policies:
+        - SQSPollerPolicy:
+            QueueName: !GetAtt GetUtilitiesQueue.QueueName
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref VPCEndpointSecurityGroup
+        SubnetIds:
+          - !Ref UtilFirstPrivateSubnet
+          - !Ref UtilSecondPrivateSubnet
+      Events:
+        GetUtilitiesQueueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt GetUtilitiesQueue.Arn
+            BatchSize: 10
+            
+  UtilSQSEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref UtilVPC
+      VpcEndpointType: Interface
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.sqs"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: "*"
+            Action:
+              - sqs:SendMessage
+              - sqs:ReceiveMessage
+              - sqs:DeleteMessage
+              - sqs:GetQueueUrl
+            Resource: "*"
+      SubnetIds: 
+        - !Ref UtilFirstPrivateSubnet
+        - !Ref UtilSecondPrivateSubnet
+      SecurityGroupIds:
+        - !GetAtt VPCEndpointSecurityGroup.GroupId
+      PrivateDnsEnabled: true
+  
+  UtilSecManEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref UtilVPC
+      VpcEndpointType: Interface
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.secretsmanager"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: "*"
+            Action:
+              - secretsmanager:GetSecretValue
+              - secretsmanager:DescribeSecret
+            Resource: "*"
+      SubnetIds: 
+        - !Ref UtilFirstPrivateSubnet
+        - !Ref UtilSecondPrivateSubnet
+      SecurityGroupIds:
+        - !GetAtt VPCEndpointSecurityGroup.GroupId
+      PrivateDnsEnabled: true
+      
+  VPCEndpointSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupDescription: "SecurityGroup for VPCEndpoint"
+      SecurityGroupEgress: 
+        - CidrIp: "0.0.0.0/0"
+          IpProtocol: -1
+      SecurityGroupIngress:
+        - CidrIp: !GetAtt UtilVPC.CidrBlock
+          IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+      VpcId: !Ref UtilVPC
+
+  GetUtilitiesQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 120
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt GetUtilitiesDLQ.Arn
+        maxReceiveCount: 5
+
+  GetUtilitiesDLQ:
+    Type: AWS::SQS::Queue
+      
+  GetUtilHistory:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/
+      Handler: paid_utils.lambda_handler
+      Role: !GetAtt UtilLambdaRole.Arn
+      Runtime: python3.8
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref VPCEndpointSecurityGroup
+        SubnetIds:
+          - !Ref UtilFirstPrivateSubnet
+          - !Ref UtilSecondPrivateSubnet
+      Layers:
+        - !Ref QueriesLayer
+      Policies:
+        - SQSPollerPolicy:
+            QueueName: !GetAtt GetUtilHistoryQueue.QueueName
+      Events:
+        GetUtilHistoryQueueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt GetUtilHistoryQueue.Arn
+            BatchSize: 10
+
+  GetUtilHistoryQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 120
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt GetUtilHistoryDLQ.Arn
+        maxReceiveCount: 5
+
+  GetUtilHistoryDLQ:
+    Type: AWS::SQS::Queue
+
+  PayUtilities:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/
+      Handler: pay_utils.lambda_handler
+      Runtime: python3.8
+      Role: !GetAtt UtilLambdaRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref VPCEndpointSecurityGroup
+        SubnetIds:
+          - !Ref UtilFirstPrivateSubnet
+          - !Ref UtilSecondPrivateSubnet
+      Layers:
+        - !Ref QueriesLayer
+      Policies:
+        - SQSPollerPolicy:
+            QueueName: !GetAtt PayUtilitiesQueue.QueueName
+      Events:
+        PayUtilitiesQueueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt PayUtilitiesQueue.Arn
+            BatchSize: 10
+  
+  PayUtilitiesQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 120
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt PayUtilitiesDLQ.Arn
+        maxReceiveCount: 5
+
+  PayUtilitiesDLQ:
+    Type: AWS::SQS::Queue
+  
+  InitRDS:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/
+      Handler: init_rds.lambda_handler
+      Role: !GetAtt UtilLambdaRole.Arn
+      Runtime: python3.8
+      
+  UtilApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: utilpay
+      Cors:
+        AllowMethods: "'POST, GET'"
+        AllowHeaders: "'X-Forwarded-For'"
+        AllowOrigin: "'*'"
+        MaxAge: "'600'"
+      Auth:
+        DefaultAuthorizer: UtilCognitoAuthorizer
+        Authorizers:
+          UtilCognitoAuthorizer:
+            UserPoolArn: !GetAtt UtilCognitoPool.Arn
+      DefinitionBody:
+        'Fn::Transform':
+          Name: 'AWS::Include'
+          Parameters:
+            Location: './api.yaml'
+  
+  UtilLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+              - lambda.amazonaws.com
+          Action:
+            - sts:AssumeRole
+  
+  UtilLambdaPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: secret-manager-policy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action:
+              - ec2:CreateNetworkInterface
+              - ec2:DescribeNetworkInterfaces
+              - ec2:DeleteNetworkInterface
+            Effect: Allow
+            Resource: 
+              - '*'
+          - Action:
+              - secretsmanager:GetSecretValue
+              - secretsmanager:DescribeSecret
+            Effect: Allow
+            Resource:
+              - !Ref UtilCgnSecret
+              - !Ref UtilCacheSecret
+              - !Ref UtilRDSSecret
+          - Action:
+              - elasticache:*
+            Effect: Allow
+            Resource:
+              - !Sub "arn:aws:elasticache:${AWS::Region}:${AWS::AccountId}:cluster:${UtilCacheCluster}"
+          - Action:
+              - sqs:*
+            Effect: Allow
+            Resource:
+              - !GetAtt SignInQueue.Arn
+              - !GetAtt GetUtilitiesQueue.Arn
+              - !GetAtt GetUtilHistoryQueue.Arn
+              - !GetAtt PayUtilitiesQueue.Arn
+              - '*'
+          - Action:
+              - cognito-idp:DescribeUserPoolClient
+            Effect: Allow
+            Resource:
+              - !GetAtt UtilCognitoPool.Arn
+      Roles:
+        - !Ref UtilLambdaRole
+  
+  ApiGwExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - apigateway.amazonaws.com
+            Action: 
+              - sts:AssumeRole
+      Path: "/"
+      
+  ApiGwExecutionPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: apigw-execution-policy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action:
+              - sqs:*
+              - logs:*
+            Effect: Allow
+            Resource:
+              - !GetAtt SignInQueue.Arn
+              - !GetAtt GetUtilitiesQueue.Arn
+              - !GetAtt GetUtilHistoryQueue.Arn
+              - !GetAtt PayUtilitiesQueue.Arn
+              - '*'
+      Roles:
+        - !Ref ApiGwExecutionRole
+  
+  QueriesLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      ContentUri: ./layers/
+      CompatibleRuntimes:
+        - python3.8
+    Metadata:
+      BuildMethod: python3.8
+
+  UtilCognitoPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: utils-pool
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+      UsernameAttributes:
+      - email
+      Schema:
+      - AttributeDataType: String
+        Name: email
+        Required: true
+
+  UtilCognitoPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UtilCognitoPool
+      ClientName: util-pool-client
+      ExplicitAuthFlows:
+        - ALLOW_ADMIN_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_PASSWORD_AUTH
+      GenerateSecret: true
+      SupportedIdentityProviders:
+        - COGNITO
+
+  UtilCgnSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: UtilCgnSecret
+      Description: UtilCognitoPool credentials
+      SecretString:
+        !Sub |
+          {
+            "pool_id": "${UtilCognitoPool}",  
+            "client_id": "${UtilCognitoPoolClient}"
+          }
+
+  UtilRDSSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: UtilRDSSecret
+      Description: UtilitiesDatabase credentials
+      SecretString:
+        !Sub | 
+          {
+            "user": "${UsernameCustomerDB}",
+            "password": "${PasswordCustomerDB}",
+            "host": "${UtilitiesDatabase.Endpoint.Address}",
+            "port" : "${UtilitiesDatabase.Endpoint.Port}",
+            "dbname": "${NameDB}"
+          }
+
+  UtilCacheSecret:
+    Type: AWS::SecretsManager::Secret
+    DependsOn:
+      - UtilCacheCluster
+    Properties:
+      Name: UtilCacheSecret
+      Description: UtilCacheCluster credentials
+      SecretString:
+        !Sub | 
+          {
+            "address": "${UtilCacheCluster.RedisEndpoint.Address}", 
+            "port": "${UtilCacheCluster.RedisEndpoint.Port}"
+          }
+
+  UtilCacheGroupSubnet:
+    Type: AWS::ElastiCache::SubnetGroup
+    DependsOn:
+      - UtilFirstPrivateSubnet
+      - UtilSecondPrivateSubnet
+    Properties:
+      CacheSubnetGroupName: util-cache-subnet-group
+      Description: Subnet group for ElastiCache
+      SubnetIds:
+        - !Ref UtilFirstPrivateSubnet
+        - !Ref UtilSecondPrivateSubnet
+
+  CacheSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    DependsOn:
+      - UtilVPC
+    Properties:
+      GroupDescription: "SecurityGroup for ElastiCache"
+      VpcId: !Ref UtilVPC
+      SecurityGroupIngress:
+        - CidrIp: !GetAtt UtilVPC.CidrBlock
+          IpProtocol: tcp
+          FromPort: 6379
+          ToPort: 6379
+
+  UtilCacheCluster:
+    Type: AWS::ElastiCache::CacheCluster
+    DependsOn: 
+      - CacheSecurityGroup
+      - UtilCacheGroupSubnet
+    Properties:
+      ClusterName: util-cache-clstr
+      CacheNodeType: cache.t2.micro
+      Engine: redis
+      NumCacheNodes: 1
+      Port: 6379
+      VpcSecurityGroupIds:
+        - !Ref CacheSecurityGroup
+      CacheSubnetGroupName: !Ref UtilCacheGroupSubnet
+
+  DBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for PostgresDB
+      VpcId: !Ref UtilVPC
+      SecurityGroupIngress:
+        - CidrIp: !GetAtt UtilVPC.CidrBlock
+          IpProtocol: tcp
+          ToPort: 5432
+          FromPort: 5432
+
+  UtilDBGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupName: util-db-group
+      DBSubnetGroupDescription: Subnet group for PostgresDB
+      SubnetIds:
+        - !Ref UtilFirstPrivateSubnet
+        - !Ref UtilSecondPrivateSubnet
+
+  UtilitiesDatabase:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      Engine: postgres
+      DBInstanceClass: db.t3.micro
+      AllocatedStorage: 20
+      DBInstanceIdentifier: util-db-instance
+      DBName: !Ref NameDB
+      MasterUsername: !Ref UsernameDB
+      MasterUserPassword: !Ref PasswordDB
+      PubliclyAccessible: false
+      MultiAZ: false
+      Port: 5432
+      VPCSecurityGroups:
+        - !Ref DBSecurityGroup
+      DBSubnetGroupName: !Ref UtilDBGroup
+
+  # UtilRDSInitializer:
+  #   Type: Custom::RDSInitializer
+  #   Properties:
+  #     ServiceToken: !GetAtt InitRDS.Arn
+  #     Host: !GetAtt UtilitiesDatabase.Endpoint.Address
+  #     Port: !GetAtt UtilitiesDatabase.Endpoint.Port
+  #     DBName: !Ref NameDB
+  #     MasterUsername: !Ref UsernameDB
+  #     MasterUserPassword: !Ref PasswordDB
+  #     CustomerUsername: !Ref UsernameCustomerDB
+  #     CustomerPassword: !Ref PasswordCustomerDB
+
+Outputs:
+  UtilApiEndpoint:
+    Description: API Gateway endpoint URL for Dev stage for Order Get function
+    Value: !Sub "https://${UtilApi}.execute-api.${AWS::Region}.amazonaws.com/utilpay/"
+  SignIn:
+    Description: SignIn Lambda Function ARN
+    Value: !GetAtt SignIn.Arn
+  GetUtilities:
+    Description: GetUtilities Lambda Function ARN
+    Value: !GetAtt GetUtilities.Arn
+  GetUtilHistory:
+    Description: GetUtilHistory Lambda Function ARN
+    Value: !GetAtt GetUtilHistory.Arn
+  PayUtilities:
+    Description: PayUtilities Lambda Function ARN
+    Value: !GetAtt PayUtilities.Arn
+  UtilCognitoClient:
+    Description: The client ID of the Cognito user pool
+    Value: !Ref UtilCognitoPoolClient
+  UtilCognitoUserPool:
+    Description: ID of the Cognito userpool
+    Value: !Ref UtilCognitoPool
+  UtilitiesDatabase:
+    Description: Database for storaging information about utilities
+    Value: !Ref UtilitiesDatabase
+  UtilCacheCluster:
+    Description: UtilCacheCluster for saving actual debts
+    Value: !Sub "arn:aws:elasticache:${AWS::Region}:${AWS::AccountId}:cluster:${UtilCacheCluster}"
