@@ -8,11 +8,11 @@ This app utilizes an event-driven architecture where users interact with AWS Lam
 
 In order to uphold ACID properties, user payments data is stored within Amazon RDS (Postgres). AWS Lambdas process data from Amazon RDS and store the results of computations in ElastiCache (for Redis) to enable rapid retrieval.
 
-## Architecture & Design
+## Architecture Diagram
 
 ![Architecture Diagram](./images/architecture.jpg)
 
-### Networking
+### Network Diagram
 
 ![Network Diagram](./images/network.jpg)
 
@@ -25,7 +25,7 @@ Prior to developing the application, I established specific criteria outlining t
 - Users should be able to pay their current utility debts by dividing them based on the type of utility, provider, and debt periods.
 - Users can access the payment history of utility debts, categorized by utility type, provider, and debt periods.
 
-## Api Design
+## API Design
 
 ### Utility Billing Service
 
@@ -63,4 +63,4 @@ The client receives a message from an SQS queue containing payment status inform
 
 ## License
 
-
+This library is licensed under the MIT-0 License. See the [LICENSE](LICENSE) file.
