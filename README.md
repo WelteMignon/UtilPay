@@ -29,8 +29,8 @@ Prior to developing the application, I established specific criteria outlining t
 
 ### Utility Billing Service
 
-POST   
-`/auth`
+POST      
+`/auth`   
 The login request for the application. The request body includes 'username', 'password' and a user-generated UUID as the 'queue_name'. The 'queue_name' is a personalized queue where the user will await a response.
 
 GET   
