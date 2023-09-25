@@ -30,35 +30,35 @@ Prior to developing the application, I established specific criteria outlining t
 ### Utility Billing Service
 
 POST   
-`/login`
+`/auth`
 The login request for the application. The request body includes 'username', 'password' and a user-generated UUID as the 'queue_name'. The 'queue_name' is a personalized queue where the user will await a response.
 
 GET   
-`/login/{queue_name}`  
+`/auth/{queue_name}`  
 The client receive a message containing a list of apartments and authentication data from an SQS queue. 
 
 POST   
-`/get_utils/{apartment_id}`  
+`/apartments/{apartment_id}/utils`  
 The request to retrieve the current unsettled debts of the department.
 
 GET   
-`/get_utils/{apartment_id}/{queue_name}`  
+`/apartments/{apartment_id}/utils/{queue_name}`  
 The client receive a message containing a list of current outstanding debts from an SQS queue.
 
 POST   
-`/get_history/{apartment_id}`
+`/apartments/{apartment_id}/histories`
 The request to access the user's settled debts. The request body includes 'date_up', 'date_down' and 'queue_name'. The 'date_up' and 'date_down' fields define the timeframe for client-side cached paid debts. The server compares this timeframe with the one on its side and then returns the difference to the client. As a result, the client holds the most up-to-date version of the payment history.
 
 GET   
-`/get_history/{apartment_id}/{queue_name}`  
+`/apartments/{apartment_id}/histories/{queue_name}`  
 The client receive a message containing a list of user's settled debts from an SQS queue.  
 
 POST  
-`/pay_utils/{apartment_id}`  
+`/apartments/{apartment_id}/payments`  
 The request to make payments towards debts. The request body includes 'bills_id' and 'queue_name'. The 'bills_id' field contains the identifiers of bills to be paid.
 
 GET  
-`/pay_utils/{apartment_id}/{queue_name}`  
+`/apartments/{apartment_id}/payments/{queue_name}`  
 The client receives a message from an SQS queue containing payment status information. 
 
 ## License

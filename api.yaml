@@ -7,7 +7,7 @@ basePath: "/utilpay"
 schemes:
 - "https"
 paths:
-  /login:
+  /auth:
     post:
       consumes:
       - "application/json"
@@ -29,7 +29,7 @@ paths:
         requestTemplates:
           application/json: "Action=SendMessage&MessageBody={\"request_body\": $input.json('$')}"
         passthroughBehavior: "when_no_match"
-  /login/{queue_name}:
+  /auth/{queue_name}:
     get:
       responses:
         "200":
@@ -55,7 +55,7 @@ paths:
         requestTemplates:
           application/json: "Action=ReceiveMessage"
         passthroughBehavior: "when_no_match"
-  /get_utils/{apartment_id}:
+  /apartments/{apartment_id}/utils:
     post:
       consumes:
       - "application/json"
@@ -83,7 +83,7 @@ paths:
         requestTemplates:
           application/json: "Action=SendMessage&MessageBody={\"request_body\": $input.json('$'), \"path_params\": {\"apartment_id\": \"$input.params('apartment_id')\"}}"
         passthroughBehavior: "when_no_match"
-  /get_utils/{apartment_id}/{queue_name}:
+  /apartments/{apartment_id}/utils/{queue_name}:
     get:
       responses:
         "200":
@@ -109,7 +109,7 @@ paths:
         requestTemplates:
           application/json: "Action=ReceiveMessage"
         passthroughBehavior: "when_no_match"
-  /get_history/{apartment_id}:
+  /apartments/{apartment_id}/histories/{apartment_id}:
     post:
       consumes:
       - "application/json"
@@ -137,7 +137,7 @@ paths:
         requestTemplates:
           application/json: "Action=SendMessage&MessageBody={\"request_body\": $input.json('$'), \"path_params\": {\"apartment_id\": \"$input.params('apartment_id')\"}}"
         passthroughBehavior: "when_no_match"
-  /get_history/{apartment_id}/{queue_name}:
+  /apartments/{apartment_id}/histories/{queue_name}:
     get:
       responses:
         "200":
@@ -163,7 +163,7 @@ paths:
         requestTemplates:
           application/json: "Action=ReceiveMessage"
         passthroughBehavior: "when_no_match"
-  /pay_utils/{apartment_id}:
+  /apartments/{apartment_id}/payments:
     post:
       consumes:
       - "application/json"
@@ -191,7 +191,7 @@ paths:
         requestTemplates:
           application/json: "Action=SendMessage&MessageBody={\"request_body\": $input.json('$'), \"path_params\": {\"apartment_id\": \"$input.params('apartment_id')\"}}"
         passthroughBehavior: "when_no_match"
-  /pay_utils/{apartment_id}/{queue_name}:
+  /apartments/{apartment_id}/payments/{queue_name}:
     get:
       responses:
         "200":

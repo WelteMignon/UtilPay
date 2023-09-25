@@ -65,7 +65,7 @@ class TestApiGateway:
         auth_token = 'eyJraWQiOiJJb2M4aGhoMVkrUEpzT1M4OXg1XC9Pb0FnNmxHc3pMTDdvcXlMdElnakZ3cz0iLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiI4MmQ3OWRjYy0xMThiLTQ4ZDEtYTBmMi03ZGRhZmU1NTdiOGUiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6XC9cL2NvZ25pdG8taWRwLnVzLWVhc3QtMS5hbWF6b25hd3MuY29tXC91cy1lYXN0LTFfdGxlM2x5ZFl0IiwiY29nbml0bzp1c2VybmFtZSI6IjgyZDc5ZGNjLTExOGItNDhkMS1hMGYyLTdkZGFmZTU1N2I4ZSIsIm9yaWdpbl9qdGkiOiI0ZjE0ZjZlZS0zMTkyLTQzMGUtODEwMi1hNmFmZjA5OGQ1MWQiLCJhdWQiOiIxaGZrcWJzdjdlZ3NtMm5uY2szbHNyc3B2IiwiZXZlbnRfaWQiOiIwNTI2ZjAzMC03ZjJkLTQ4YzItYjlkMC0wNDRlZTIyZDRhOTkiLCJ0b2tlbl91c2UiOiJpZCIsImF1dGhfdGltZSI6MTY5Mzk0NDY0OCwiZXhwIjoxNjkzOTQ4MjQ4LCJpYXQiOjE2OTM5NDQ2NDgsImp0aSI6IjZhNTcwZDYzLWRkNzItNDVkYi1iZDEzLWRhZjFmODQ0ODE4YiIsImVtYWlsIjoidGVzdF9lbWFpbEBnbWFpbC5jb20ifQ.CF4YY4PNMAa71dnj_E27xPuAsRmVq1bNESBJ-GNtM-cfbCYPO2WeETH0KOAH0IaMAhiFsdK5P6C6YAUb9f0RNEHLnBIhnL59RkObQroMb3Cyjn5Ah5P3rbMBR_WY_-q_RKFAiYi9nkvhDiAqZZh_Hu67AeFsf-2J3wLE7Jw-TRJ1AipzMP-EDrhoUc-_l1l5Xmc5Tn8Z6FzIfalunr-RPF_juxJhma7gTI3dF2z1NXAfPi3YMeRCFCqq81Rx_wsgzEVmUkJWg2N2N8Q6rXb8yLlOeMJ5cQxq10zVmmAkoM3wVVMHNDPGXZ9qgJTvLN9thkTg8qGIzgrr638kq7t0nQ'
         
         response = requests.post(
-            url=api_gateway_url + 'login', 
+            url=api_gateway_url + 'auth', 
             data=json.dumps({
                 "username": "test_email@gmail.com",
                 "password": "test1234",
@@ -80,7 +80,7 @@ class TestApiGateway:
         time.sleep(3)
         
         response = requests.get(
-            url=api_gateway_url + 'login/test_queue',
+            url=api_gateway_url + 'auth/test_queue',
             headers={
                 "Authorization": f"Bearer {auth_token}"
             }
@@ -121,7 +121,7 @@ class TestApiGateway:
     def test_unpaid_utils(self, api_gateway_url, apart_id, auth_id_token, test_queue):
         
         response = requests.post(
-            url=api_gateway_url + 'get_utils/' + apart_id,
+            url=api_gateway_url + 'apartments/' + apart_id + '/utils',
             data=json.dumps({
                 "queue_name": "test_queue"
             }),
@@ -134,7 +134,7 @@ class TestApiGateway:
         time.sleep(3)
 
         response = requests.get(
-            url=api_gateway_url + 'get_utils/' + apart_id + '/' + test_queue,
+            url=api_gateway_url + 'apartments/' + apart_id + '/utils/' + test_queue,
             headers={
                 "Authorization": f"Bearer {auth_id_token}"
             }
@@ -149,7 +149,7 @@ class TestApiGateway:
     def test_paid_utils(self, api_gateway_url, apart_id, auth_id_token, test_queue):
         
         response = requests.post(
-            url=api_gateway_url + 'get_history/' + apart_id,
+            url=api_gateway_url + 'apartments/' + apart_id + '/histories',
             data=json.dumps({
                 "queue_name": "test_queue",
                 "date_up": "",
@@ -164,7 +164,7 @@ class TestApiGateway:
         time.sleep(3)
 
         response = requests.get(
-            url=api_gateway_url + 'get_history/' + apart_id + '/' + test_queue,
+            url=api_gateway_url + 'apartments/' + apart_id + '/histories/' + test_queue,
             headers={
                 "Authorization": f"Bearer {auth_id_token}"
             }
@@ -179,7 +179,7 @@ class TestApiGateway:
     def test_payment_utils(self, api_gateway_url, apart_id, auth_id_token, test_queue):
         
         response = requests.post(
-            url=api_gateway_url + 'pay_utils/' + apart_id,
+            url=api_gateway_url + 'apartments/' + apart_id + '/payments',
             data=json.dumps({
                 "queue_name": test_queue,
                 "bills_id": [10, 11, 13, 14]
@@ -193,7 +193,7 @@ class TestApiGateway:
         time.sleep(3)
 
         response = requests.get(
-            url=api_gateway_url + 'get_utils/' + apart_id + '/' + test_queue,
+            url=api_gateway_url + 'apartments/' + apart_id + '/payments/' + test_queue,
             headers={
                 "Authorization": f"Bearer {auth_id_token}"
             }
